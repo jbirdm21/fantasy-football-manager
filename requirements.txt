@@ -1,0 +1,22 @@
+# API Framework
+fastapi==0.103.1
+uvicorn==0.23.2
+pydantic==2.3.0
+
+# Database
+sqlalchemy==2.0.20
+psycopg2-binary==2.9.7
+alembic==1.12.0
+
+# Authentication
+python-jose==3.3.0
+passlib==1.7.4
+python-multipart==0.0.6
+
+# UI and visualization
+rich==13.5.3
+typer==0.9.0
+
+# External APIs
+requests==2.31.0
+aiohttp==3.8.5 

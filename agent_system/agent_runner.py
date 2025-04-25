@@ -1,4 +1,16 @@
 """Main runner for the agent system."""
+from agent_system.agents.models import Agent, AgentState, Task, TaskStatus
+from agent_system.config import (
+    OPENAI_API_KEY, AGENT_LOG_LEVEL, MAX_CONCURRENT_TASKS, TASK_TIMEOUT_HOURS,
+    AGENT_OUTPUTS_DIR, PROJECT_ROOT, is_path_allowed
+)
+from agent_system.utils.github_integration import commit_agent_changes
+from agent_system.utils.persistence import (
+    save_agent_state, get_agent_state, save_task, get_task,
+    get_all_tasks, get_available_tasks, update_task_status, log_agent_activity
+)
+from agent_system.tasks.roadmap_parser import generate_tasks_from_roadmap, assign_tasks_to_agents
+from agent_system.agents.definitions import AGENTS, AGENT_MAP
 import os
 import time
 import logging
@@ -6,23 +18,26 @@ from typing import Dict, List, Optional, Any, Union
 from datetime import datetime, timedelta
 import argparse
 import json
+from pathlib import Path
+import sqlite3
 
 import openai
 from rich.console import Console
 from rich.logging import RichHandler
 
-from agent_system.agents.models import Agent, AgentState, Task, TaskStatus
-from agent_system.agents.definitions import AGENTS, AGENT_MAP
-from agent_system.tasks.roadmap_parser import generate_tasks_from_roadmap, assign_tasks_to_agents
-from agent_system.utils.persistence import (
-    save_agent_state, get_agent_state, save_task, get_task,
-    get_all_tasks, get_available_tasks, update_task_status, log_agent_activity
-)
-from agent_system.utils.github_integration import commit_agent_changes
-from agent_system.config import (
-    OPENAI_API_KEY, AGENT_LOG_LEVEL, MAX_CONCURRENT_TASKS, TASK_TIMEOUT_HOURS,
-    AGENT_OUTPUTS_DIR
-)
+# Define database connection function
+
+
+def get_db_connection():
+    """Get a connection to the SQLite database.
+
+    Returns:
+        SQLite connection object
+    """
+    db_path = Path(__file__).parent / "outputs" / "agent_system.db"
+    conn = sqlite3.connect(str(db_path))
+    conn.row_factory = sqlite3.Row
+    return conn
 
 
 # Setup logging
@@ -54,15 +69,15 @@ def initialize_tasks() -> None:
         # Generate tasks from roadmap
         logger.info("Generating tasks from roadmap...")
         tasks = generate_tasks_from_roadmap()
-        
+
         # Create specialization map for task assignment
         specialization_map = {}
         for agent in AGENTS:
             specialization_map[agent.agent_id] = [spec.value for spec in agent.specializations]
-        
+
         # Assign tasks to agents
         assigned_tasks = assign_tasks_to_agents(tasks, specialization_map)
-        
+
         # Save tasks to database
         for task in assigned_tasks:
             save_task(task)
@@ -73,7 +88,7 @@ def initialize_tasks() -> None:
 
 def run_agent(agent_id: str, task_id: Optional[str] = None) -> None:
     """Run an agent on a task.
-    
+
     Args:
         agent_id: ID of the agent to run.
         task_id: Optional ID of the task to run. If not provided, the agent's current task
@@ -84,12 +99,12 @@ def run_agent(agent_id: str, task_id: Optional[str] = None) -> None:
     if not agent:
         logger.error(f"Agent {agent_id} not found")
         return
-    
+
     state = get_agent_state(agent_id)
     if not state:
         logger.error(f"State for agent {agent_id} not found")
         return
-    
+
     # Determine which task to work on
     if task_id:
         task = get_task(task_id)
@@ -108,37 +123,40 @@ def run_agent(agent_id: str, task_id: Optional[str] = None) -> None:
             logger.info(f"No available tasks for agent {agent_id}")
             return
         task = available_tasks[0]
-    
+
     # Update agent state
     state.current_task_id = task.task_id
     state.status = "working"
     state.last_activity = datetime.now()
     save_agent_state(state)
-    
+
     # Update task status
     if task.status == TaskStatus.PENDING:
         task.status = TaskStatus.IN_PROGRESS
         task.updated_at = datetime.now()
         save_task(task)
-    
+
     # Log start of task
     logger.info(f"Agent {agent.name} starting task: {task.title}")
     log_agent_activity(agent_id, f"Starting task {task.task_id}: {task.title}")
-    
+
     try:
         # Execute task
         result = execute_task(agent, task, state)
-        
+
         # Update task status
         if result.get("status") == "completed":
             task.status = TaskStatus.COMPLETED
             task.actual_hours = result.get("hours", 0.0)
             state.completed_tasks.append(task.task_id)
-            
+
             # Store artifacts
             if "artifacts" in result:
                 task.artifacts = result["artifacts"]
-            
+                for artifact in result["artifacts"]:
+                    if artifact.startswith("http"):
+                        logger.info(f"Task '{task.title}' created PR: {artifact}")
+
             logger.info(f"Agent {agent.name} completed task: {task.title}")
             log_agent_activity(agent_id, f"Completed task {task.task_id}: {task.title}")
         elif result.get("status") == "failed":
@@ -149,13 +167,13 @@ def run_agent(agent_id: str, task_id: Optional[str] = None) -> None:
             task.status = TaskStatus.BLOCKED
             logger.warning(f"Agent {agent.name} blocked on task: {task.title}")
             log_agent_activity(agent_id, f"Blocked on task {task.task_id}: {task.title}", "WARNING")
-        
+
         task.updated_at = datetime.now()
         save_task(task)
     except Exception as e:
         logger.exception(f"Error executing task {task.task_id}: {e}")
         log_agent_activity(agent_id, f"Error executing task {task.task_id}: {e}", "ERROR")
-        
+
         # Update task and agent state
         task.status = TaskStatus.FAILED
         task.updated_at = datetime.now()
@@ -170,21 +188,21 @@ def run_agent(agent_id: str, task_id: Optional[str] = None) -> None:
 
 def execute_task(agent: Agent, task: Task, state: AgentState) -> Dict[str, Any]:
     """Execute a task using the agent.
-    
+
     Args:
         agent: The agent to use for execution.
         task: The task to execute.
         state: The agent's current state.
-        
+
     Returns:
         A dictionary with the execution result.
     """
     # Set up OpenAI client
     client = openai.OpenAI(api_key=OPENAI_API_KEY)
-    
+
     # Prepare system prompt
     system_prompt = agent.system_prompt
-    
+
     # Prepare user message with task details
     user_message = f"""
 # Task: {task.title}
@@ -210,6 +228,13 @@ Remember to follow the reasoning steps in your process:
 6. Reflect – note edge-cases missed & open follow-ups
 7. Commit & PR – prepare changes for review
 
+## CRITICAL REQUIREMENTS
+1. YOU MUST INCLUDE file_changes in your response with at least one file change
+2. File changes MUST INCLUDE both path and content
+3. Failure to provide file changes will result in task failure
+4. Every task requires code or documentation changes - NO EXCEPTIONS
+5. Your changes will be automatically committed to GitHub
+
 Please provide your response in the following structured format:
 ```yaml
 message:
@@ -226,6 +251,10 @@ file_changes:
 reasoning: |
   Detailed reasoning about your approach and decisions
 ```
+
+IMPORTANT: For every task, you MUST include at least one file change in the file_changes section.
+This will automatically create a Pull Request. Even for small tasks or documentation, create or modify
+an appropriate file to implement your solution.
 
 When you're done, clearly state "TASK COMPLETED" or indicate what's blocking you from completing the task.
 """
@@ -246,10 +275,10 @@ When you're done, clearly state "TASK COMPLETED" or indicate what's blocking you
             temperature=agent.temperature,
             max_tokens=agent.max_tokens
         )
-        
+
         # Extract response content
         response_content = response.choices[0].message.content
-        
+
         # Process response
         return process_agent_response(agent, task, response_content, state)
     except Exception as e:
@@ -261,19 +290,19 @@ When you're done, clearly state "TASK COMPLETED" or indicate what's blocking you
 
 
 def process_agent_response(
-    agent: Agent, 
-    task: Task, 
+    agent: Agent,
+    task: Task,
     response: str,
     state: AgentState
 ) -> Dict[str, Any]:
     """Process the response from the agent.
-    
+
     Args:
         agent: The agent that generated the response.
         task: The task being executed.
         response: The response from the agent.
         state: The agent's state.
-        
+
     Returns:
         A dictionary with the processing result.
     """
@@ -284,7 +313,7 @@ def process_agent_response(
         status = "blocked"
     else:
         status = "in_progress"
-    
+
     # Try to parse YAML structure
     try:
         # Extract YAML section from response
@@ -293,58 +322,101 @@ def process_agent_response(
             yaml_parts = response.split("```yaml", 1)
             if len(yaml_parts) > 1:
                 yaml_section = yaml_parts[1].split("```", 1)[0]
-        
+
         # Parse YAML content
         import yaml
         parsed = yaml.safe_load(yaml_section)
-        
+
         if not parsed:
             logger.warning(f"Could not parse YAML from response for task {task.task_id}")
             return {
-                "status": status,
+                "status": "failed",
                 "hours": 0.5,
+                "error": "Failed to parse agent response format",
                 "raw_response": response
             }
-        
+
+        # ENFORCE FILE CHANGES - Ensure every task has file changes
+        if not parsed.get("file_changes") or not isinstance(
+                parsed["file_changes"], list) or len(parsed["file_changes"]) == 0:
+            logger.warning(f"No file changes provided for task {task.task_id} - forcing agent to retry")
+            return {
+                "status": "failed",
+                "hours": 0.1,
+                "error": "No file changes provided - each task must include code changes",
+                "raw_response": response
+            }
+
         # Process file changes if present
-        if "file_changes" in parsed and parsed["file_changes"]:
-            file_changes = {}
-            for change in parsed["file_changes"]:
-                file_path = change.get("path")
-                content = change.get("content")
-                if file_path and content:
-                    file_changes[file_path] = content
-            
-            if file_changes:
-                # Commit changes to GitHub
-                pr_desc = parsed.get("reasoning", "Changes made by agent")
-                commit_msg = parsed.get("message", {}).get("summary", f"Update for task {task.title}")
-                
+        file_changes = {}
+
+        # First pass - validate paths and prepare changes
+        for change in parsed["file_changes"]:
+            file_path = change.get("path")
+            content = change.get("content")
+
+            if file_path and content:
+                # Normalize path
+                path_obj = Path(file_path)
+
+                # If it's a relative path, make it absolute from project root
+                if not path_obj.is_absolute():
+                    path_obj = PROJECT_ROOT / path_obj
+
+                # Validate path is within allowed project directories
+                if not is_path_allowed(str(path_obj)):
+                    logger.warning(f"Path {file_path} is not allowed, skipping")
+                    continue
+
+                # Make directories if they don't exist
                 try:
-                    pr_url = commit_agent_changes(
-                        agent.agent_id,
-                        file_changes,
-                        commit_msg,
-                        pr_desc
-                    )
-                    logger.info(f"Created PR: {pr_url}")
-                    
-                    # Store artifacts
-                    if status == "completed":
-                        return {
-                            "status": status,
-                            "hours": 1.0,
-                            "artifacts": [pr_url],
-                            "message": parsed.get("message", {})
-                        }
-                except Exception as e:
-                    logger.exception(f"Error committing changes: {e}")
-        
+                    path_obj.parent.mkdir(parents=True, exist_ok=True)
+                    logger.info(f"Ensuring directory exists: {path_obj.parent}")
+                except (PermissionError, OSError) as e:
+                    logger.error(f"Error creating directory for {file_path}: {e}")
+                    continue
+
+                # Store the file changes
+                file_changes[str(path_obj)] = content
+
+        if file_changes:
+            # Commit changes to GitHub
+            pr_desc = parsed.get("reasoning", "Changes made by agent")
+            commit_msg = parsed.get("message", {}).get("summary", f"Update for task {task.title}")
+
+            try:
+                pr_url = commit_agent_changes(
+                    agent.agent_id,
+                    file_changes,
+                    commit_msg,
+                    pr_desc
+                )
+                logger.info(f"Created PR: {pr_url}")
+
+                # Store PR URL as artifact regardless of task status
+                return {
+                    "status": status,
+                    "hours": 1.0,
+                    "artifacts": [pr_url],
+                    "message": parsed.get("message", {})
+                }
+            except Exception as e:
+                logger.error(f"Error committing changes: {e}")
+
+                # If GitHub commit fails, write files locally
+                try:
+                    for file_path, content in file_changes.items():
+                        with open(file_path, 'w') as f:
+                            f.write(content)
+                        logger.info(f"Created local file: {file_path}")
+                except Exception as local_e:
+                    logger.error(f"Error writing local files: {local_e}")
+
         # Update agent memory with context if provided
         if "reasoning" in parsed:
             state.memory["context"] = parsed["reasoning"]
             save_agent_state(state)
-        
+
         # Return processed result
         return {
             "status": status,
@@ -364,6 +436,9 @@ def process_agent_response(
 
 def run_all_agents() -> None:
     """Run all agents on available tasks."""
+    # Check for stalled tasks first
+    check_stalled_tasks()
+
     # Get all agents
     for agent_id, agent in AGENT_MAP.items():
         state = get_agent_state(agent_id)
@@ -371,12 +446,12 @@ def run_all_agents() -> None:
             logger.warning(f"State for agent {agent_id} not found, initializing...")
             state = AgentState(agent_id=agent_id)
             save_agent_state(state)
-        
+
         # Skip agents that are already working
         if state.status == "working":
             logger.info(f"Agent {agent.name} is already working on a task, skipping")
             continue
-        
+
         # Check if this agent has an active task
         if state.current_task_id:
             task = get_task(state.current_task_id)
@@ -388,7 +463,7 @@ def run_all_agents() -> None:
                     task.status = TaskStatus.FAILED
                     task.updated_at = datetime.now()
                     save_task(task)
-                    
+
                     state.current_task_id = None
                     state.status = "idle"
                     state.last_activity = datetime.now()
@@ -397,55 +472,130 @@ def run_all_agents() -> None:
                     # Continue working on current task
                     run_agent(agent_id, task.task_id)
                     continue
-        
+
         # Get next available task
         available_tasks = get_available_tasks(agent_id)
         if not available_tasks:
-            logger.info(f"No available tasks for agent {agent.name}")
-            continue
-        
-        # Run agent on next task
-        run_agent(agent_id, available_tasks[0].task_id)
+            # Check for failed tasks to retry
+            failed_tasks = get_failed_tasks(agent_id)
+            if failed_tasks:
+                logger.info(f"Found {len(failed_tasks)} failed tasks for agent {agent.name}, retrying...")
+                # Reset the first failed task to PENDING and assign it
+                task = failed_tasks[0]
+                task.status = TaskStatus.PENDING
+                task.updated_at = datetime.now()
+                task.retry_count = getattr(task, 'retry_count', 0) + 1
+
+                # Only retry up to 3 times
+                if task.retry_count <= 3:
+                    save_task(task)
+                    logger.info(f"Retrying task {task.title} (attempt {task.retry_count}/3)")
+                    run_agent(agent_id, task.task_id)
+                else:
+                    logger.warning(f"Task {task.title} has failed {task.retry_count} times, giving up")
+                    continue
+            else:
+                logger.info(f"No available tasks for agent {agent.name}")
+                continue
+        else:
+            # Run agent on next task
+            run_agent(agent_id, available_tasks[0].task_id)
+
+
+def check_stalled_tasks() -> None:
+    """Check for tasks that might be stalled and reset them."""
+    # Get all in-progress tasks
+    tasks = get_all_tasks()
+    in_progress_tasks = [t for t in tasks if t.status == TaskStatus.IN_PROGRESS]
+
+    for task in in_progress_tasks:
+        # Check if the task has been updated in the last 2 hours
+        timeout = timedelta(hours=2)
+        if datetime.now() - task.updated_at > timeout:
+            logger.warning(f"Task {task.task_id} ({task.title}) appears to be stalled, resetting to PENDING")
+
+            # Get the agent state to update it
+            agent_id = task.assigned_agent_id
+            state = get_agent_state(agent_id)
+
+            if state and state.current_task_id == task.task_id:
+                # Reset agent state
+                state.current_task_id = None
+                state.status = "idle"
+                state.last_activity = datetime.now()
+                save_agent_state(state)
+
+            # Reset the task
+            task.status = TaskStatus.PENDING
+            task.updated_at = datetime.now()
+            task.retry_count = getattr(task, 'retry_count', 0) + 1
+            save_task(task)
+
+
+def get_failed_tasks(agent_id: str) -> List[Task]:
+    """Get failed tasks for an agent.
+
+    Args:
+        agent_id: The ID of the agent to get failed tasks for.
+
+    Returns:
+        A list of failed tasks for the agent.
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # Get all failed tasks for this agent
+    cursor.execute(
+        "SELECT * FROM tasks WHERE assigned_agent_id = ? AND status = ? ORDER BY priority DESC",
+        (agent_id, TaskStatus.FAILED.value)
+    )
+
+    tasks = []
+    for row in cursor.fetchall():
+        tasks.append(Task.from_dict(dict(row)))
+
+    conn.close()
+    return tasks
 
 
 def main():
     """Main entry point for the agent runner."""
     parser = argparse.ArgumentParser(description="Run the agent system")
     parser.add_argument(
-        "--initialize", 
-        action="store_true", 
+        "--initialize",
+        action="store_true",
         help="Initialize agents and tasks"
     )
     parser.add_argument(
-        "--agent", 
+        "--agent",
         type=str,
         help="Run a specific agent by ID"
     )
     parser.add_argument(
-        "--task", 
+        "--task",
         type=str,
         help="Run a specific task by ID"
     )
     parser.add_argument(
-        "--daemon", 
-        action="store_true", 
+        "--daemon",
+        action="store_true",
         help="Run in daemon mode (continuous operation)"
     )
-    
+
     args = parser.parse_args()
-    
+
     # Check if OpenAI API key is set
     if not OPENAI_API_KEY:
         logger.error("OpenAI API key not found. Please set the OPENAI_API_KEY environment variable.")
         return
-    
+
     # Initialize if requested
     if args.initialize:
         logger.info("Initializing agent system...")
         initialize_agents()
         initialize_tasks()
         logger.info("Initialization complete")
-    
+
     # Run specific agent and task if provided
     if args.agent and args.task:
         logger.info(f"Running agent {args.agent} on task {args.task}")
@@ -467,4 +617,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main() 
+    main()

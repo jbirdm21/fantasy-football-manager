@@ -1,10 +1,13 @@
+from pathlib import Path
+import subprocess
+import argparse
+import sys
+import os
+import logging
+
+logger = logging.getLogger(__name__)
 #!/usr/bin/env python
 """Script to run the agent system locally without Docker."""
-import os
-import sys
-import argparse
-import subprocess
-from pathlib import Path
 
 # Get the root directory
 ROOT_DIR = Path(__file__).parent.parent
@@ -22,10 +25,10 @@ def check_requirements():
         # If we get here, required packages are installed
         return True
     except ImportError as e:
-        print(f"Missing required package: {e}")
+        logger.info(f"Missing required package: {e}")
         install = input("Install required packages? (y/n): ")
         if install.lower() == "y":
-            subprocess.run([sys.executable, "-m", "pip", "install", "-r", 
+            subprocess.run([sys.executable, "-m", "pip", "install", "-r",
                            str(AGENT_SYSTEM_DIR / "requirements.txt")])
             return True
         return False
@@ -34,10 +37,10 @@ def check_requirements():
 def setup_env():
     """Setup environment variables from .env file."""
     env_path = AGENT_SYSTEM_DIR / ".env"
-    
+
     if not env_path.exists():
         # Create sample .env file
-        print("Creating sample .env file...")
+        logger.info("Creating sample .env file...")
         with open(env_path, "w") as f:
             f.write("""# OpenAI API Configuration
 OPENAI_API_KEY=your_openai_api_key_here
@@ -60,24 +63,24 @@ AGENT_LOG_LEVEL=INFO
 MAX_CONCURRENT_TASKS=3
 TASK_TIMEOUT_HOURS=24
 """)
-        print(f"Please edit {env_path} to add your API keys")
+        logger.info(f"Please edit {env_path} to add your API keys")
         return False
-    
+
     # Load environment variables
     from dotenv import load_dotenv
     load_dotenv(env_path)
-    
+
     # Check if essential environment variables are set
     if not os.environ.get("OPENAI_API_KEY"):
-        print("OPENAI_API_KEY is not set in .env file")
+        logger.info("OPENAI_API_KEY is not set in .env file")
         return False
-    
+
     return True
 
 
 def run_agent_system(initialize=False, agent=None, task=None, daemon=False):
     """Run the agent system.
-    
+
     Args:
         initialize: Whether to initialize the agent system.
         agent: ID of a specific agent to run.
@@ -87,10 +90,10 @@ def run_agent_system(initialize=False, agent=None, task=None, daemon=False):
     # Set PYTHONPATH to include the root directory
     env = os.environ.copy()
     env["PYTHONPATH"] = str(ROOT_DIR)
-    
+
     # Build command
     cmd = [sys.executable, "-m", "agent_system.agent_runner"]
-    
+
     if initialize:
         cmd.append("--initialize")
     if agent:
@@ -99,47 +102,47 @@ def run_agent_system(initialize=False, agent=None, task=None, daemon=False):
         cmd.extend(["--task", task])
     if daemon:
         cmd.append("--daemon")
-    
+
     # Run the command
-    print(f"Running: {' '.join(cmd)}")
+    logger.info(f"Running: {' '.join(cmd)}")
     try:
         subprocess.run(cmd, env=env)
     except KeyboardInterrupt:
-        print("\nStopped by user")
+        logger.info("\nStopped by user")
 
 
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(description="Run the agent system locally")
-    parser.add_argument("--initialize", action="store_true", 
-                       help="Initialize agents and tasks")
+    parser.add_argument("--initialize", action="store_true",
+                        help="Initialize agents and tasks")
     parser.add_argument("--agent", type=str,
-                       help="Run a specific agent by ID")
+                        help="Run a specific agent by ID")
     parser.add_argument("--task", type=str,
-                       help="Run a specific task by ID")
+                        help="Run a specific task by ID")
     parser.add_argument("--daemon", action="store_true",
-                       help="Run in daemon mode (continuous operation)")
+                        help="Run in daemon mode (continuous operation)")
     parser.add_argument("--setup", action="store_true",
-                       help="Set up environment variables")
-    
+                        help="Set up environment variables")
+
     args = parser.parse_args()
-    
+
     # If setup requested, just set up environment and exit
     if args.setup:
         if setup_env():
-            print("Environment setup complete")
+            logger.info("Environment setup complete")
         return
-    
+
     # Check requirements
     if not check_requirements():
-        print("Required packages are missing. Please install them first.")
+        logger.info("Required packages are missing. Please install them first.")
         return
-    
+
     # Setup environment if not already done
     if not setup_env():
-        print("Environment setup failed. Please run with --setup to configure.")
+        logger.info("Environment setup failed. Please run with --setup to configure.")
         return
-    
+
     # Run the agent system
     run_agent_system(
         initialize=args.initialize,
@@ -150,4 +153,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main() 
+    main()

@@ -1,98 +1,432 @@
-{% extends "base.html" %}
 
-{% block content %}
-<h1>Agent System Dashboard</h1>
-
-<div class="row mt-4">
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">
-                <h5>Agents</h5>
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-striped">
-                        <thead>
-                            <tr>
-                                <th>Name</th>
-                                <th>Role</th>
-                                <th>Status</th>
-                                <th>Current Task</th>
-                                <th>Last Activity</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for agent in agents %}
-                            <tr>
-                                <td>{{ agent.name }}</td>
-                                <td>{{ agent.role }}</td>
-                                <td>{{ agent.status }}</td>
-                                <td>
-                                    {% if agent.current_task %}
-                                    <a href="/tasks/{{ agent.current_task.task_id }}">{{ agent.current_task.title }}</a>
-                                    {% else %}
-                                    -
-                                    {% endif %}
-                                </td>
-                                <td>{{ agent.last_activity }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">
-                <h5>Task Summary</h5>
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-striped">
-                        <thead>
-                            <tr>
-                                <th>Status</th>
-                                <th>Count</th>
-                                <th>Percentage</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for status, count in task_summary.items() %}
-                            <tr class="task-{{ status.lower() }}">
-                                <td>{{ status }}</td>
-                                <td>{{ count }}</td>
-                                <td>{{ (count / task_summary_total * 100) | round(1) }}%</td>
-                            </tr>
-                            {% endfor %}
-                            <tr>
-                                <td><strong>Total</strong></td>
-                                <td><strong>{{ task_summary_total }}</strong></td>
-                                <td>100%</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <div class="card mt-4">
-            <div class="card-header">
-                <h5>Phase Progress</h5>
-            </div>
-            <div class="card-body">
-                {% for phase, progress in phase_progress.items() %}
-                <h6>{{ phase }}</h6>
-                <div class="progress mb-3">
-                    <div class="progress-bar" role="progressbar" style="width: {{ progress }}%">
-                        {{ progress }}%
+            {% extends "base.html" %}
+            {% block content %}
+            <!-- Overview Tab -->
+            <div id="overview" class="tab-content">
+                <div class="cards-grid">
+                    <div class="card">
+                        <div class="stat-card">
+                            <div class="stat-title">Active Agents</div>
+                            <div class="stat-value">{{ active_agents }}/{{ total_agents }}</div>
+                            <div class="progress-container">
+                                <div class="progress-bar" style="width: {{ (active_agents / total_agents) * 100 if total_agents > 0 else 0 }}%;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="stat-card">
+                            <div class="stat-title">Tasks Completed</div>
+                            <div class="stat-value">{{ completed_tasks }}/{{ total_tasks }}</div>
+                            <div class="progress-container">
+                                <div class="progress-bar" style="width: {{ (completed_tasks / total_tasks) * 100 if total_tasks > 0 else 0 }}%;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="stat-card">
+                            <div class="stat-title">Tasks In Progress</div>
+                            <div class="stat-value">{{ task_summary.IN_PROGRESS if task_summary.IN_PROGRESS else 0 }}</div>
+                            <div class="stat-change positive">
+                                <i class="bi bi-arrow-up-right"></i>
+                                <span>Currently Being Processed</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="stat-card">
+                            <div class="stat-title">Pending Tasks</div>
+                            <div class="stat-value">{{ task_summary.PENDING if task_summary.PENDING else 0 }}</div>
+                            <div class="stat-change">
+                                <i class="bi bi-clock"></i>
+                                <span>Waiting to be Started</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                {% endfor %}
+                
+                <div class="card mb-4">
+                    <div class="card-heading">
+                        <h2>Current Agent Activity</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Agent</th>
+                                        <th>Current Task</th>
+                                        <th>Status</th>
+                                        <th>Started</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for agent in agents %}
+                                    <tr>
+                                        <td><strong>{{ agent.name if agent.name else agent.agent_id }}</strong></td>
+                                        <td>{{ agent.current_task_title if agent.current_task_title else "None" }}</td>
+                                        <td>
+                                            <span class="status status-{{ (agent.status|lower) if agent.status else 'unknown' }}">
+                                                {% if agent.status == 'ACTIVE' %}
+                                                <i class="bi bi-check-circle-fill"></i>
+                                                {% elif agent.status == 'WORKING' %}
+                                                <i class="bi bi-lightning-fill"></i>
+                                                {% elif agent.status == 'IDLE' %}
+                                                <i class="bi bi-pause-circle"></i>
+                                                {% else %}
+                                                <i class="bi bi-question-circle"></i>
+                                                {% endif %}
+                                                {{ agent.status if agent.status else "Unknown" }}
+                                            </span>
+                                        </td>
+                                        <td>{{ agent.task_started_at if agent.task_started_at else "N/A" }}</td>
+                                        <td>
+                                            <button class="btn btn-sm btn-primary">
+                                                <i class="bi bi-play-fill"></i> Run
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card mb-4">
+                    <div class="card-heading">
+                        <h2>Recent Tasks</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Task</th>
+                                        <th>Agent</th>
+                                        <th>Status</th>
+                                        <th>Updated</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for task in recent_tasks %}
+                                    <tr>
+                                        <td><strong>{{ task.title }}</strong></td>
+                                        <td>{{ task.assigned_to }}</td>
+                                        <td>
+                                            <span class="status status-{{ (task.status|lower) if task.status else 'unknown' }}">
+                                                {% if task.status == 'COMPLETED' %}
+                                                <i class="bi bi-check-circle-fill"></i>
+                                                {% elif task.status == 'IN_PROGRESS' %}
+                                                <i class="bi bi-lightning-fill"></i>
+                                                {% elif task.status == 'PENDING' %}
+                                                <i class="bi bi-clock"></i>
+                                                {% elif task.status == 'FAILED' %}
+                                                <i class="bi bi-x-circle-fill"></i>
+                                                {% else %}
+                                                <i class="bi bi-question-circle"></i>
+                                                {% endif %}
+                                                {{ task.status if task.status else "Unknown" }}
+                                            </span>
+                                        </td>
+                                        <td>{{ task.updated_at }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-heading">
+                        <h2>Recent Log Messages</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="log-viewer">
+                            {% for log in recent_logs %}
+                            <div class="log-line {% if 'ERROR' in log or 'Error' in log %}log-error{% elif 'WARNING' in log or 'Warning' in log %}log-warning{% elif 'INFO' in log or 'Info' in log %}log-info{% elif 'SUCCESS' in log or 'Success' in log %}log-success{% endif %}">
+                                {{ log }}
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
             </div>
-        </div>
-    </div>
-</div>
-{% endblock %}
+            
+            <!-- Agents Tab -->
+            <div id="agents" class="tab-content">
+                <div class="card">
+                    <div class="card-heading">
+                        <h2>Agent Status</h2>
+                        <div class="search-box">
+                            <i class="bi bi-search"></i>
+                            <input type="text" id="agentSearch" onkeyup="filterTable('agentSearch', 'agentTable')" placeholder="Search for agents...">
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-container">
+                            <table id="agentTable">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Agent ID</th>
+                                        <th>Status</th>
+                                        <th>Current Task</th>
+                                        <th>Last Active</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for agent in agents %}
+                                    <tr>
+                                        <td><strong>{{ agent.name if agent.name else "Unknown" }}</strong></td>
+                                        <td>{{ agent.agent_id }}</td>
+                                        <td>
+                                            <span class="status status-{{ (agent.status|lower) if agent.status else 'unknown' }}">
+                                                {% if agent.status == 'ACTIVE' %}
+                                                <i class="bi bi-check-circle-fill"></i>
+                                                {% elif agent.status == 'WORKING' %}
+                                                <i class="bi bi-lightning-fill"></i>
+                                                {% elif agent.status == 'IDLE' %}
+                                                <i class="bi bi-pause-circle"></i>
+                                                {% else %}
+                                                <i class="bi bi-question-circle"></i>
+                                                {% endif %}
+                                                {{ agent.status if agent.status else "Unknown" }}
+                                            </span>
+                                        </td>
+                                        <td>{{ agent.current_task_title if agent.current_task_title else "None" }}</td>
+                                        <td>{{ agent.updated_at if agent.updated_at else "Unknown" }}</td>
+                                        <td>
+                                            <button class="btn btn-sm btn-primary">
+                                                <i class="bi bi-play-fill"></i> Run
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Tasks Tab -->
+            <div id="tasks" class="tab-content">
+                <div class="card">
+                    <div class="card-heading">
+                        <h2>Task List</h2>
+                        <div class="search-box">
+                            <i class="bi bi-search"></i>
+                            <input type="text" id="taskSearch" onkeyup="filterTable('taskSearch', 'taskTable')" placeholder="Search for tasks...">
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="flex gap-3 mb-3">
+                            <button class="btn btn-sm btn-primary" onclick="filterTasksByStatus('all')">All</button>
+                            <button class="btn btn-sm btn-secondary" onclick="filterTasksByStatus('pending')">Pending</button>
+                            <button class="btn btn-sm btn-info" onclick="filterTasksByStatus('in-progress')">In Progress</button>
+                            <button class="btn btn-sm btn-success" onclick="filterTasksByStatus('completed')">Completed</button>
+                            <button class="btn btn-sm btn-danger" onclick="filterTasksByStatus('failed')">Failed</button>
+                        </div>
+                        <div class="table-container">
+                            <table id="taskTable">
+                                <thead>
+                                    <tr>
+                                        <th>Task ID</th>
+                                        <th>Title</th>
+                                        <th>Status</th>
+                                        <th>Assigned To</th>
+                                        <th>Created At</th>
+                                        <th>Updated At</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for task in tasks %}
+                                    <tr data-status="{{ (task.status|lower) if task.status else 'unknown' }}">
+                                        <td>{{ task.task_id }}</td>
+                                        <td><strong>{{ task.title }}</strong></td>
+                                        <td>
+                                            <span class="status status-{{ (task.status|lower) if task.status else 'unknown' }}">
+                                                {% if task.status == 'COMPLETED' %}
+                                                <i class="bi bi-check-circle-fill"></i>
+                                                {% elif task.status == 'IN_PROGRESS' %}
+                                                <i class="bi bi-lightning-fill"></i>
+                                                {% elif task.status == 'PENDING' %}
+                                                <i class="bi bi-clock"></i>
+                                                {% elif task.status == 'FAILED' %}
+                                                <i class="bi bi-x-circle-fill"></i>
+                                                {% else %}
+                                                <i class="bi bi-question-circle"></i>
+                                                {% endif %}
+                                                {{ task.status if task.status else "Unknown" }}
+                                            </span>
+                                        </td>
+                                        <td>{{ task.assigned_to }}</td>
+                                        <td>{{ task.created_at }}</td>
+                                        <td>{{ task.updated_at }}</td>
+                                        <td>
+                                            <button class="btn btn-sm btn-primary">
+                                                <i class="bi bi-play-fill"></i> Run
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Logs Tab -->
+            <div id="logs" class="tab-content">
+                <div class="card">
+                    <div class="card-heading">
+                        <h2>System Logs</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="flex gap-3 mb-3">
+                            <div class="search-box flex-1">
+                                <i class="bi bi-search"></i>
+                                <input type="text" id="logSearch" onkeyup="filterLogs()" placeholder="Filter logs...">
+                            </div>
+                            <select id="logFile" onchange="fetchLogFile()" class="form-control" style="max-width: 200px;">
+                                {% for log_file in log_files %}
+                                <option value="{{ log_file }}">{{ log_file }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="log-viewer" id="logContent">
+                            {% for line in log_content %}
+                            <div class="log-line {% if 'ERROR' in line or 'Error' in line %}log-error{% elif 'WARNING' in line or 'Warning' in line %}log-warning{% elif 'INFO' in line or 'Info' in line %}log-info{% elif 'SUCCESS' in line or 'Success' in line %}log-success{% endif %}">
+                                {{ line }}
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- File Changes Tab -->
+            <div id="changes" class="tab-content">
+                <div class="card">
+                    <div class="card-heading">
+                        <h2>Recent File Changes</h2>
+                    </div>
+                    <div class="card-body">
+                        {% for change in file_changes %}
+                        <div class="card mb-3">
+                            <div class="card-heading">
+                                <h2>{{ change.file }}</h2>
+                                <span>Last modified: {{ change.modified_time }}</span>
+                            </div>
+                            <div class="card-body">
+                                <pre>{{ change.preview }}</pre>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Conversations Tab -->
+            <div id="conversations" class="tab-content">
+                <div class="card">
+                    <div class="card-heading">
+                        <h2>Agent Conversations</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="flex gap-3 mb-3">
+                            <div class="form-group flex-1">
+                                <label class="form-label">Agent</label>
+                                <select id="convoAgent" onchange="fetchConversation()" class="form-control">
+                                    {% for agent in agents %}
+                                    <option value="{{ agent.agent_id }}">{{ agent.name if agent.name else agent.agent_id }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="form-group flex-1">
+                                <label class="form-label">Task</label>
+                                <select id="convoTask" onchange="fetchConversation()" class="form-control">
+                                    {% for task in tasks %}
+                                    <option value="{{ task.task_id }}">{{ task.title }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div id="conversationContent" class="log-viewer">
+                            {% if conversation %}
+                            <pre>{{ conversation }}</pre>
+                            {% else %}
+                            <p>Select an agent and task to view conversations</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Database Tab -->
+            <div id="database" class="tab-content">
+                <div class="card">
+                    <div class="card-heading">
+                        <h2>Database Query</h2>
+                    </div>
+                    <div class="card-body">
+                        <form action="/query" method="post">
+                            <div class="form-group">
+                                <label class="form-label">SQL Query</label>
+                                <textarea name="query" class="form-control" style="height: 100px;">SELECT * FROM tasks LIMIT 10;</textarea>
+                            </div>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-play-fill"></i> Run Query
+                            </button>
+                        </form>
+                        
+                        {% if query_result %}
+                        <div class="mt-4">
+                            <h3 class="mb-3">Query Results</h3>
+                            <div class="table-container">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            {% for column in query_columns %}
+                                            <th>{{ column }}</th>
+                                            {% endfor %}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for row in query_result %}
+                                        <tr>
+                                            {% for cell in row %}
+                                            <td>{{ cell }}</td>
+                                            {% endfor %}
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <script>
+            function filterTasksByStatus(status) {
+                const rows = document.querySelectorAll('#taskTable tbody tr');
+                rows.forEach(row => {
+                    if (status === 'all') {
+                        row.style.display = '';
+                    } else {
+                        row.style.display = row.dataset.status === status ? '' : 'none';
+                    }
+                });
+            }
+            </script>
+            {% endblock %}
+            

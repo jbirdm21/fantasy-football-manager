@@ -1,0 +1,57 @@
+---
+# Collaborative Task Template
+# This template defines how multiple agents should collaborate on related tasks
+
+title: "{{ task_title }}"
+description: |
+  {{ task_description }}
+  
+  This is a collaborative task that requires coordination between multiple agents.
+  
+  ## Collaboration Partners
+  {% for agent in collaborating_agents %}
+  - {{ agent.name }} ({{ agent.agent_id }}): {{ agent.role }}
+  {% endfor %}
+  
+  ## Collaboration Protocol
+  1. Each agent should focus on their area of expertise
+  2. Share your progress through PR comments
+  3. Review PRs from collaborating agents
+  4. Coordinate integration points explicitly in your code
+  5. Document interfaces between components
+  6. Write integration tests
+
+acceptance_criteria:
+  - "{{ acceptance_criteria }}"
+  - "All related components must integrate smoothly"
+  - "Integration tests pass successfully"
+  - "Interfaces between components are documented"
+  - "Code review comments from collaborating agents are addressed"
+
+dependencies:
+  - "{{ dependencies }}"
+
+roadmap_phase: "{{ roadmap_phase }}"
+priority: "{{ priority }}"
+
+# Collaboration Details
+collaboration:
+  primary_agent: "{{ primary_agent_id }}"
+  review_agents:
+    {% for agent in review_agents %}
+    - {{ agent }}
+    {% endfor %}
+  integration_points:
+    {% for point in integration_points %}
+    - "{{ point }}"
+    {% endfor %}
+  test_strategy: "{{ test_strategy }}"
+  
+  # Define how the work should be divided
+  division_of_labor:
+    {% for agent_id, responsibilities in division_of_labor.items() %}
+    {{ agent_id }}:
+      {% for responsibility in responsibilities %}
+      - "{{ responsibility }}"
+      {% endfor %}
+    {% endfor %} 

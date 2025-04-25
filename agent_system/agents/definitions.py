@@ -153,4 +153,4 @@ AGENTS = [
 ]
 
 # Dictionary mapping agent_id to agent
-AGENT_MAP = {agent.agent_id: agent for agent in AGENTS} 
+AGENT_MAP = {agent.agent_id: agent for agent in AGENTS}

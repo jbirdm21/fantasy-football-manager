@@ -1,0 +1,4 @@
+2025-04-25 12:13:10,930 - server_runner - INFO - Setting CORS for frontend URL: http://localhost:3000
+2025-04-25 12:13:10,931 - server_runner - INFO - Starting server on 0.0.0.0:8000
+2025-04-25 12:18:48,899 - server_runner - INFO - Setting CORS for frontend URL: http://localhost:3000
+2025-04-25 12:18:48,900 - server_runner - INFO - Starting server on 0.0.0.0:8000

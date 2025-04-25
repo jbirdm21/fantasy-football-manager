@@ -8,7 +8,7 @@ router = APIRouter()
 @router.get("/auth/url")
 async def get_auth_url():
     """Get Yahoo OAuth authentication URL.
-    
+
     Returns:
         Authentication URL to redirect the user to
     """
@@ -22,10 +22,10 @@ async def get_auth_url():
 @router.get("/auth/callback")
 async def auth_callback(code: str = Query(...)):
     """Handle Yahoo OAuth callback.
-    
+
     Args:
         code: Authorization code from Yahoo
-        
+
     Returns:
         Access and refresh tokens
     """
@@ -40,13 +40,13 @@ async def auth_callback(code: str = Query(...)):
 @router.get("/league/{league_id}")
 async def get_league(league_id: str, access_token: str = Query(...)):
     """Get Yahoo league information.
-    
+
     Args:
         league_id: Yahoo league ID
         access_token: Yahoo OAuth access token
-        
+
     Returns:
         League information
     """
     # TODO: Implement Yahoo API client
-    return {"league_id": league_id, "name": "Example Yahoo League", "status": "In Progress"} 
+    return {"league_id": league_id, "name": "Example Yahoo League", "status": "In Progress"}

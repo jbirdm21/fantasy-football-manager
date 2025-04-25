@@ -1,0 +1,16 @@
+[Unit]
+Description=Fantasy Football Manager API Server
+After=network.target
+
+[Service]
+User=ffm
+Group=ffm
+WorkingDirectory=/opt/fantasy-football-manager
+Environment="PATH=/opt/fantasy-football-manager/.venv/bin:/usr/local/bin:/usr/bin:/bin"
+Environment="FRONTEND_URL=http://localhost:3000"
+ExecStart=/opt/fantasy-football-manager/.venv/bin/python scripts/run_server.py
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target 

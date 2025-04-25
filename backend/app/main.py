@@ -1,4 +1,5 @@
 """Main FastAPI application entrypoint."""
+from backend.app.api.routes import espn_router, yahoo_router, sleeper_router, projections_router
 import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -27,7 +28,6 @@ app.add_middleware(
 )
 
 # Import routers after app initialization to avoid circular imports
-from app.api.routes import espn_router, yahoo_router, sleeper_router, projections_router
 
 # Include routers
 app.include_router(espn_router, prefix="/api/espn", tags=["ESPN"])
@@ -54,4 +54,4 @@ async def startup_event():
 async def shutdown_event():
     """Run shutdown tasks."""
     logger.info("Shutting down UPFFM backend...")
-    # Add cleanup code here 
+    # Add cleanup code here
