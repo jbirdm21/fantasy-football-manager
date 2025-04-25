@@ -1,0 +1,66 @@
+{
+  "FFM-001": {
+    "id": "FFM-001",
+    "title": "Set up database models for fantasy football teams",
+    "description": "Create database models for Teams, Players, Leagues, and basic stats",
+    "status": "COMPLETED",
+    "priority": 1,
+    "assigned_to": null,
+    "created_at": "2025-04-25T12:01:13.337448",
+    "updated_at": "2025-04-25T12:01:13.337456",
+    "artifacts": [],
+    "metadata": {
+      "status_message": "Successfully created database models for fantasy football teams"
+    }
+  },
+  "FFM-002": {
+    "id": "FFM-002",
+    "title": "Implement basic API routes for team management",
+    "description": "Create API endpoints for CRUD operations on fantasy teams",
+    "status": "COMPLETED",
+    "priority": 2,
+    "assigned_to": null,
+    "created_at": "2025-04-25T12:01:13.337966",
+    "updated_at": "2025-04-25T12:01:13.337967",
+    "artifacts": [],
+    "metadata": {
+      "status_message": "Successfully implemented API routes for team management with CRUD operations"
+    }
+  },
+  "FFM-003": {
+    "id": "FFM-003",
+    "title": "Connect to external football data APIs",
+    "description": "Set up clients for ESPN, Yahoo, and Sleeper APIs to fetch player stats",
+    "status": "READY",
+    "priority": 3,
+    "assigned_to": null,
+    "created_at": "2025-04-25T12:01:13.338307",
+    "updated_at": "2025-04-25T12:01:13.338308",
+    "artifacts": [],
+    "metadata": {}
+  },
+  "FFM-004": {
+    "id": "FFM-004",
+    "title": "Create draft simulation interface",
+    "description": "Develop UI and backend for fantasy draft simulation",
+    "status": "READY",
+    "priority": 4,
+    "assigned_to": null,
+    "created_at": "2025-04-25T12:01:13.338482",
+    "updated_at": "2025-04-25T12:01:13.338483",
+    "artifacts": [],
+    "metadata": {}
+  },
+  "FFM-005": {
+    "id": "FFM-005",
+    "title": "Implement player comparison tool",
+    "description": "Create a tool to compare player statistics and projections",
+    "status": "READY",
+    "priority": 5,
+    "assigned_to": null,
+    "created_at": "2025-04-25T12:01:13.338658",
+    "updated_at": "2025-04-25T12:01:13.338659",
+    "artifacts": [],
+    "metadata": {}
+  }
+}

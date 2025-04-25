@@ -3,11 +3,12 @@ from enum import Enum
 from typing import Dict, List, Optional, Any
 from pydantic import BaseModel, Field
 from datetime import datetime
+from dataclasses import dataclass, field
 
 
 class AgentRole(str, Enum):
     """Roles that agents can assume in the system."""
-    
+
     BACKEND_DEVELOPER = "backend_developer"
     FRONTEND_DEVELOPER = "frontend_developer"
     DATA_SCIENTIST = "data_scientist"
@@ -18,7 +19,7 @@ class AgentRole(str, Enum):
 
 class AgentSpecialization(str, Enum):
     """Areas of specialization for agents."""
-    
+
     PYTHON = "python"
     FASTAPI = "fastapi"
     SQL = "sql"
@@ -32,19 +33,19 @@ class AgentSpecialization(str, Enum):
 
 
 class TaskStatus(str, Enum):
-    """Status of a task in the system."""
-    
-    PENDING = "pending"
-    IN_PROGRESS = "in_progress"
-    COMPLETED = "completed"
-    FAILED = "failed"
-    BLOCKED = "blocked"
-    REVIEW = "review"
+    """Status of a task in the agent system."""
+    READY = "READY"
+    IN_PROGRESS = "IN_PROGRESS"
+    COMPLETED = "COMPLETED"
+    PR_READY = "PR_READY"
+    PR_SUBMITTED = "PR_SUBMITTED"
+    NEEDS_REVISION = "NEEDS_REVISION"
+    ERROR = "ERROR"
 
 
 class Agent(BaseModel):
     """Definition of an AI agent in the system."""
-    
+
     agent_id: str = Field(..., description="Unique identifier for the agent")
     name: str = Field(..., description="Human-readable name for the agent")
     role: AgentRole = Field(..., description="Primary role of the agent")
@@ -58,11 +59,11 @@ class Agent(BaseModel):
         description="Background story to provide context to the agent"
     )
     model: str = Field(
-        default="gpt-4-1106-preview", 
+        default="gpt-4-1106-preview",
         description="LLM model used by this agent"
     )
     temperature: float = Field(
-        default=0.1, 
+        default=0.1,
         description="Temperature for LLM generation (higher = more creative)"
     )
     max_tokens: int = Field(
@@ -77,11 +78,11 @@ class Agent(BaseModel):
 
 class AgentState(BaseModel):
     """The current state of an agent in the system."""
-    
+
     agent_id: str = Field(..., description="ID of the agent this state belongs to")
     status: str = Field(default="idle", description="Current status of the agent")
     current_task_id: Optional[str] = Field(
-        default=None, 
+        default=None,
         description="ID of the task currently being worked on"
     )
     last_activity: datetime = Field(
@@ -98,47 +99,46 @@ class AgentState(BaseModel):
     )
 
 
-class Task(BaseModel):
-    """A task to be performed by an agent."""
-    
-    task_id: str = Field(..., description="Unique identifier for the task")
-    title: str = Field(..., description="Title of the task")
-    description: str = Field(..., description="Detailed description of the task")
-    acceptance_criteria: List[str] = Field(
-        default_factory=list,
-        description="List of criteria that must be met for the task to be considered complete"
-    )
-    priority: int = Field(default=5, description="Priority from 1 (highest) to 10 (lowest)")
-    assigned_agent_id: Optional[str] = Field(
-        default=None, 
-        description="ID of the agent assigned to this task"
-    )
-    status: TaskStatus = Field(default=TaskStatus.PENDING, description="Current status of the task")
-    dependencies: List[str] = Field(
-        default_factory=list,
-        description="IDs of tasks that must be completed before this one"
-    )
-    created_at: datetime = Field(
-        default_factory=datetime.now,
-        description="When the task was created"
-    )
-    updated_at: datetime = Field(
-        default_factory=datetime.now,
-        description="When the task was last updated"
-    )
-    estimated_hours: float = Field(
-        default=0.0,
-        description="Estimated hours to complete this task"
-    )
-    actual_hours: Optional[float] = Field(
-        default=None,
-        description="Actual hours spent on this task"
-    )
-    roadmap_phase: str = Field(
-        default="",
-        description="Which phase of the roadmap this task belongs to"
-    )
-    artifacts: List[str] = Field(
-        default_factory=list,
-        description="Paths to artifacts created or modified by this task"
-    ) 
+@dataclass
+class Task:
+    """Task for agents to work on."""
+    id: str
+    title: str
+    description: Optional[str] = None
+    status: TaskStatus = TaskStatus.READY
+    priority: int = 999
+    assigned_to: Optional[str] = None
+    created_at: datetime = field(default_factory=datetime.now)
+    updated_at: datetime = field(default_factory=datetime.now)
+    artifacts: List[str] = field(default_factory=list)
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert task to dictionary for storage."""
+        return {
+            "id": self.id,
+            "title": self.title,
+            "description": self.description,
+            "status": self.status.value if isinstance(self.status, TaskStatus) else self.status,
+            "priority": self.priority,
+            "assigned_to": self.assigned_to,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+            "artifacts": self.artifacts,
+            "metadata": self.metadata
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'Task':
+        """Create task from dictionary representation."""
+        # Convert string dates back to datetime
+        if "created_at" in data and isinstance(data["created_at"], str):
+            data["created_at"] = datetime.fromisoformat(data["created_at"])
+        if "updated_at" in data and isinstance(data["updated_at"], str):
+            data["updated_at"] = datetime.fromisoformat(data["updated_at"])
+
+        # Convert status string to enum
+        if "status" in data and isinstance(data["status"], str):
+            data["status"] = TaskStatus(data["status"])
+
+        return cls(**data)

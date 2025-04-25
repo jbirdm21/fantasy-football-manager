@@ -12,12 +12,12 @@ async def get_player_projections(
     season_type: str = Query("regular", description="Season type (regular, playoffs)")
 ):
     """Get player projections.
-    
+
     Args:
         position: Filter by player position
         week: Filter by week number
         season_type: Season type (regular, playoffs)
-        
+
     Returns:
         List of player projections
     """
@@ -50,11 +50,11 @@ async def get_draft_rankings(
     positions: List[str] = Query(["QB", "RB", "WR", "TE", "K", "DST"], description="Positions to include")
 ):
     """Get draft rankings.
-    
+
     Args:
         format: Scoring format
         positions: Positions to include
-        
+
     Returns:
         List of players ranked for draft
     """
@@ -80,4 +80,4 @@ async def get_draft_rankings(
             "adp": 15.7,
             "projected_points": 380.2,
         },
-    ] 
+    ]

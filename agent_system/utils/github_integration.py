@@ -8,33 +8,37 @@ from github import Github, GithubException
 from github.Repository import Repository
 from github.ContentFile import ContentFile
 
-from agent_system.config import GITHUB_TOKEN, GITHUB_REPO
+from agent_system.config import GITHUB_TOKEN, GITHUB_REPO, is_path_allowed, PROJECT_ROOT
 
 
 def get_github_repo() -> Repository:
     """Get the GitHub repository object.
-    
+
     Returns:
         A GitHub repository object.
     """
     if not GITHUB_TOKEN:
         raise ValueError("GitHub token not found. Please set the GITHUB_TOKEN environment variable.")
-    
+
     g = Github(GITHUB_TOKEN)
     return g.get_repo(GITHUB_REPO)
 
 
 def get_file_content(repo: Repository, file_path: str, ref: str = "main") -> Optional[str]:
     """Get the content of a file from the repository.
-    
+
     Args:
         repo: GitHub repository object.
         file_path: Path to the file, relative to repo root.
         ref: Branch name or commit SHA to fetch from.
-        
+
     Returns:
         The file content as a string, or None if the file doesn't exist.
     """
+    # Validate the file path
+    if not is_path_allowed(file_path):
+        raise ValueError(f"File path '{file_path}' is not allowed")
+
     try:
         file_content = repo.get_contents(file_path, ref=ref)
         if isinstance(file_content, List):
@@ -49,7 +53,7 @@ def get_file_content(repo: Repository, file_path: str, ref: str = "main") -> Opt
 
 def create_branch(repo: Repository, branch_name: str, base_branch: str = "main") -> None:
     """Create a new branch in the repository.
-    
+
     Args:
         repo: GitHub repository object.
         branch_name: Name of the branch to create.
@@ -76,7 +80,7 @@ def commit_file_changes(
     branch_name: str
 ) -> None:
     """Commit changes to files in the repository.
-    
+
     Args:
         repo: GitHub repository object.
         file_changes: Dictionary mapping file paths to new content.
@@ -84,10 +88,24 @@ def commit_file_changes(
         branch_name: Branch to commit to.
     """
     for file_path, new_content in file_changes.items():
+        # Validate the file path
+        if not is_path_allowed(file_path):
+            raise ValueError(f"File path '{file_path}' is not allowed")
+
+        # Convert to relative path if it's an absolute path
+        if Path(file_path).is_absolute():
+            try:
+                # Make path relative to project root if possible
+                rel_path = Path(file_path).relative_to(PROJECT_ROOT)
+                file_path = str(rel_path)
+            except ValueError:
+                # If path is outside project root, it's not allowed
+                raise ValueError(f"File path '{file_path}' is outside project root")
+
         try:
             # Check if file exists
             file_content = repo.get_contents(file_path, ref=branch_name)
-            
+
             # Update existing file
             repo.update_file(
                 path=file_path,
@@ -117,14 +135,14 @@ def create_pull_request(
     body: str
 ) -> str:
     """Create a pull request in the repository.
-    
+
     Args:
         repo: GitHub repository object.
         branch_name: Head branch name (the branch with changes).
         base_branch: Base branch name (the branch to merge into).
         title: Pull request title.
         body: Pull request description.
-        
+
     Returns:
         URL of the created pull request.
     """
@@ -144,29 +162,29 @@ def commit_agent_changes(
     pr_description: str = ""
 ) -> str:
     """Commit changes made by an agent to GitHub.
-    
+
     Args:
         agent_id: ID of the agent making the changes.
         file_changes: Dictionary mapping file paths to new content.
         commit_message: Commit message.
         pr_description: Description for the pull request.
-    
+
     Returns:
         URL of the created pull request.
     """
     repo = get_github_repo()
-    
+
     # Create a branch for this agent's changes
     branch_name = f"{agent_id}-{int(time.time())}"
     create_branch(repo, branch_name)
-    
+
     # Commit the changes
     commit_file_changes(repo, file_changes, commit_message, branch_name)
-    
+
     # Create a pull request
     pr_title = f"{commit_message} (by {agent_id})"
     if not pr_description:
         pr_description = f"Changes made by agent {agent_id}"
-    
+
     pr_url = create_pull_request(repo, branch_name, "main", pr_title, pr_description)
-    return pr_url 
+    return pr_url

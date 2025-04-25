@@ -1,20 +1,23 @@
 """
 Fantasy Football Manager application initialization.
 """
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+from app.config import ALLOWED_ORIGINS, API_VERSION
 
 # Initialize FastAPI app
 app = FastAPI(
     title="Fantasy Football Manager",
     description="API for managing fantasy football leagues, teams, and players",
-    version="0.1.0"
+    version=API_VERSION
 )
 
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, replace with specific origins
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -36,5 +39,5 @@ async def root():
     return {
         "message": "Welcome to the Fantasy Football Manager API",
         "docs": "/docs",
-        "version": "0.1.0"
+        "version": API_VERSION
     } 

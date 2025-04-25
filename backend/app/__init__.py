@@ -1,1 +1,1 @@
-"""UPFFM Backend Application.""" 
+"""UPFFM Backend Application."""

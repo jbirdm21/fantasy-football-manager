@@ -6,8 +6,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-# Get database URL from environment or use default SQLite database
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./fantasy_football.db")
+from app.config import DATABASE_URL
 
 # Create SQLAlchemy engine
 engine = create_engine(

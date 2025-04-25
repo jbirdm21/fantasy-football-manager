@@ -1,0 +1,13 @@
+2025-04-25 12:00:53,673 - agent_system.utils.persistence - ERROR - Error saving task: 'Task' object has no attribute 'task_id'
+2025-04-25 12:00:53,674 - agent_system.utils.persistence - ERROR - Error saving task: 'Task' object has no attribute 'task_id'
+2025-04-25 12:00:53,674 - agent_system.utils.persistence - ERROR - Error saving task: 'Task' object has no attribute 'task_id'
+2025-04-25 12:00:53,674 - agent_system.utils.persistence - ERROR - Error saving task: 'Task' object has no attribute 'task_id'
+2025-04-25 12:00:53,674 - agent_system.utils.persistence - ERROR - Error saving task: 'Task' object has no attribute 'task_id'
+2025-04-25 12:01:13,337 - agent_system.utils.persistence - INFO - Task FFM-001 saved successfully
+2025-04-25 12:01:13,338 - agent_system.utils.persistence - INFO - Task FFM-002 saved successfully
+2025-04-25 12:01:13,338 - agent_system.utils.persistence - INFO - Task FFM-003 saved successfully
+2025-04-25 12:01:13,338 - agent_system.utils.persistence - INFO - Task FFM-004 saved successfully
+2025-04-25 12:01:13,338 - agent_system.utils.persistence - INFO - Task FFM-005 saved successfully
+2025-04-25 12:13:38,925 - agent_system.agents.tasks - ERROR - Error submitting PR: [Errno 2] No such file or directory: 'gh'
+2025-04-25 12:24:49,347 - agent_system.agents.tasks - ERROR - Error submitting PR: [Errno 2] No such file or directory: 'gh'
+2025-04-25 12:26:21,606 - agent_system.agents.tasks - ERROR - Error submitting PR: Command '['gh', 'pr', 'create', '--title', '[Task FFM-003] Connect to external football data APIs', '--body', 'Completing task FFM-003: Connect to external football data APIs\n\nSet up clients for ESPN, Yahoo, and Sleeper APIs to fetch player stats\n\nThis PR passed automated code quality checks.', '--base', 'main', '--head', 'task/ffm-003']' returned non-zero exit status 1.

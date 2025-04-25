@@ -38,6 +38,50 @@ AGENT_SYSTEM_DIR = PROJECT_ROOT / "agent_system"
 TASK_DEFINITIONS_DIR = AGENT_SYSTEM_DIR / "tasks" / "definitions"
 AGENT_OUTPUTS_DIR = AGENT_SYSTEM_DIR / "outputs"
 
+# Ensure agents can access the entire project for file manipulation
+ALLOWED_PROJECT_PATHS = [
+    PROJECT_ROOT,                # Root directory
+    PROJECT_ROOT / "src",        # Source code
+    PROJECT_ROOT / "app",        # Main application
+    PROJECT_ROOT / "frontend",   # Frontend code
+    PROJECT_ROOT / "backend",    # Backend code
+    PROJECT_ROOT / "docs",       # Documentation
+    PROJECT_ROOT / "tests",      # Tests
+    PROJECT_ROOT / "scripts",    # Scripts
+    PROJECT_ROOT / "data",       # Data files
+    PROJECT_ROOT / "config",     # Configuration
+]
+
+# Access check function for security
+
+
+def is_path_allowed(path_str: str) -> bool:
+    """Check if a path is within the allowed project paths.
+
+    Args:
+        path_str: The path string to check
+
+    Returns:
+        True if the path is allowed, False otherwise
+    """
+    # Normalize the path
+    path = Path(path_str).resolve()
+
+    # Check if the path is within any allowed path
+    for allowed_path in ALLOWED_PROJECT_PATHS:
+        try:
+            resolved_allowed = allowed_path.resolve()
+            # Check if path is allowed_path or a subdirectory
+            if str(path).startswith(str(resolved_allowed)):
+                return True
+        except (FileNotFoundError, PermissionError):
+            # If the allowed path doesn't exist yet, that's okay
+            if str(path).startswith(str(allowed_path)):
+                return True
+
+    return False
+
+
 # Create directories if they don't exist
 AGENT_OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -52,6 +96,17 @@ The project has the following key characteristics:
 - Next.js (React 18) front-end with shadcn/ui
 - Dagster for ETL & scheduled scrapes
 
+IMPORTANT: You can create and modify files anywhere in the project structure, including:
+- /app: Main application code
+- /backend: Backend API and services
+- /frontend: Next.js frontend application
+- /src: Common source code
+- /tests: Test cases and fixtures
+- /docs: Documentation files
+- /data: Data models and database schemas
+- /scripts: Utility scripts
+- /config: Configuration files
+
 When reasoning about tasks, always follow this sequence:
 1. Clarify Intent – restate the acceptance criteria
 2. Context Scan – list all code/files/docs that might be touched
@@ -62,4 +117,4 @@ When reasoning about tasks, always follow this sequence:
 7. Commit & PR – prepare changes for review
 
 Always build for maintainability and reusability. Comment complex logic but not obvious code.
-""" 
+"""
