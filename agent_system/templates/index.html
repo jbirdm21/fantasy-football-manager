@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>Agent System Dashboard</h1>
+
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>Agents</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Role</th>
+                                <th>Status</th>
+                                <th>Current Task</th>
+                                <th>Last Activity</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for agent in agents %}
+                            <tr>
+                                <td>{{ agent.name }}</td>
+                                <td>{{ agent.role }}</td>
+                                <td>{{ agent.status }}</td>
+                                <td>
+                                    {% if agent.current_task %}
+                                    <a href="/tasks/{{ agent.current_task.task_id }}">{{ agent.current_task.title }}</a>
+                                    {% else %}
+                                    -
+                                    {% endif %}
+                                </td>
+                                <td>{{ agent.last_activity }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>Task Summary</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Status</th>
+                                <th>Count</th>
+                                <th>Percentage</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for status, count in task_summary.items() %}
+                            <tr class="task-{{ status.lower() }}">
+                                <td>{{ status }}</td>
+                                <td>{{ count }}</td>
+                                <td>{{ (count / task_summary_total * 100) | round(1) }}%</td>
+                            </tr>
+                            {% endfor %}
+                            <tr>
+                                <td><strong>Total</strong></td>
+                                <td><strong>{{ task_summary_total }}</strong></td>
+                                <td>100%</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5>Phase Progress</h5>
+            </div>
+            <div class="card-body">
+                {% for phase, progress in phase_progress.items() %}
+                <h6>{{ phase }}</h6>
+                <div class="progress mb-3">
+                    <div class="progress-bar" role="progressbar" style="width: {{ progress }}%">
+                        {{ progress }}%
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

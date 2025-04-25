@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>Agents</h1>
+
+<div class="row mt-4">
+    {% for agent in agents %}
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5>{{ agent.name }} ({{ agent.role }})</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Status:</strong> {{ agent.status }}</p>
+                <p><strong>Last Activity:</strong> {{ agent.last_activity }}</p>
+                
+                {% if agent.current_task %}
+                <p><strong>Current Task:</strong> <a href="/tasks/{{ agent.current_task.task_id }}">{{ agent.current_task.title }}</a></p>
+                {% endif %}
+                
+                <h6>Completed Tasks</h6>
+                {% if agent.completed_tasks %}
+                <ul>
+                    {% for task in agent.completed_tasks %}
+                    <li><a href="/tasks/{{ task.task_id }}">{{ task.title }}</a></li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p>No completed tasks yet.</p>
+                {% endif %}
+                
+                <h6>Specializations</h6>
+                <ul>
+                    {% for spec in agent.specializations %}
+                    <li>{{ spec }}</li>
+                    {% endfor %}
+                </ul>
+                
+                <div class="mt-3">
+                    <a href="/agents/{{ agent.agent_id }}/run" class="btn btn-primary btn-sm">Run Agent</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

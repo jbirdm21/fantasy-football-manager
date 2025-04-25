@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>Tasks</h1>
+
+<div class="mb-3">
+    <div class="btn-group" role="group">
+        <a href="/tasks" class="btn btn-outline-primary {% if not filter %}active{% endif %}">All</a>
+        <a href="/tasks?filter=pending" class="btn btn-outline-primary {% if filter == 'pending' %}active{% endif %}">Pending</a>
+        <a href="/tasks?filter=in_progress" class="btn btn-outline-primary {% if filter == 'in_progress' %}active{% endif %}">In Progress</a>
+        <a href="/tasks?filter=completed" class="btn btn-outline-primary {% if filter == 'completed' %}active{% endif %}">Completed</a>
+        <a href="/tasks?filter=failed" class="btn btn-outline-primary {% if filter == 'failed' %}active{% endif %}">Failed</a>
+        <a href="/tasks?filter=blocked" class="btn btn-outline-primary {% if filter == 'blocked' %}active{% endif %}">Blocked</a>
+    </div>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Title</th>
+                <th>Status</th>
+                <th>Assigned To</th>
+                <th>Priority</th>
+                <th>Phase</th>
+                <th>Updated</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for task in tasks %}
+            <tr class="task-{{ task.status.lower() }}">
+                <td><a href="/tasks/{{ task.task_id }}">{{ task.title }}</a></td>
+                <td>{{ task.status }}</td>
+                <td>{{ task.assigned_to }}</td>
+                <td>{{ task.priority }}</td>
+                <td>{{ task.roadmap_phase }}</td>
+                <td>{{ task.updated_at }}</td>
+                <td>
+                    <div class="btn-group btn-group-sm">
+                        <a href="/tasks/{{ task.task_id }}/run" class="btn btn-primary">Run</a>
+                        <button type="button" class="btn btn-primary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown"></button>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="/tasks/{{ task.task_id }}/status/pending">Mark Pending</a></li>
+                            <li><a class="dropdown-item" href="/tasks/{{ task.task_id }}/status/in_progress">Mark In Progress</a></li>
+                            <li><a class="dropdown-item" href="/tasks/{{ task.task_id }}/status/completed">Mark Completed</a></li>
+                            <li><a class="dropdown-item" href="/tasks/{{ task.task_id }}/status/failed">Mark Failed</a></li>
+                            <li><a class="dropdown-item" href="/tasks/{{ task.task_id }}/status/blocked">Mark Blocked</a></li>
+                        </ul>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

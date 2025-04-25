@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>Agent Logs</h1>
+
+<div class="mb-3">
+    <div class="btn-group" role="group">
+        {% for agent_id, agent_name in agent_options.items() %}
+        <a href="/logs?agent={{ agent_id }}" class="btn btn-outline-primary {% if agent_id == selected_agent %}active{% endif %}">{{ agent_name }}</a>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5>Logs for {{ agent_name }}</h5>
+    </div>
+    <div class="card-body">
+        <div class="bg-dark text-light p-3 rounded" style="max-height: 600px; overflow-y: auto;">
+            <pre>{{ logs }}</pre>
+        </div>
+    </div>
+</div>
+{% endblock %}
